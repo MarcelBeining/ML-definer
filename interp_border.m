@@ -1,4 +1,9 @@
+% FUNCTION interp_border interpolates the contour "line" either by
+% distributing a defined amount of points in equidistance (mode 1) or in a defined
+% distance (mode 2). Additionally, smoothing can be applied to the contour.
+
 function outline = interp_border(line,x,mode,options,filtsize)
+
 outline = [];
 if size(line,1) < 2  %too low number of points
     return

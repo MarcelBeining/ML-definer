@@ -6,8 +6,9 @@ global F M sizM Z lines trees status contours params        %initialization
 if nargin > 3
     params = par;
 elseif isempty(params)          % then standard parameters are loaded
-    params.MLmode = 1;           % Modes: 1) IML=GCL, OML,MML = Rest/2; 2) Rest /3 = IML,MML,OML
+    params.MLmode = 2;           % Modes: 1) IML=GCL, OML,MML = Rest/2; 2) Rest /3 = IML,MML,OML
     params.intpoints = 2000;     % Amount of points on drawn lines after interpol
+    params.intdistance = 25;
     params.relsmooth = 0.02;     % filter size of smoothing, 0.02 = 2% of all points
     params.Zstep = 5;            % only every xth zplane is loaded (for big stacks)
 end
@@ -93,6 +94,8 @@ switch action,
                     lines{Z,4}.Vertices = GCL + (fissura - GCL)* 2 / 3; % same for MML/OML
                 end
                 waitbar(5/6,w)
+                lines{Z,3}.Vertices = interp_border(lines{Z,3}.Vertices,params.intdistance,2); % reducing size of line
+                lines{Z,4}.Vertices = interp_border(lines{Z,4}.Vertices,params.intdistance,2); % reducing size of line
                 lines{Z,3}.Faces = 1:size(lines{Z,3}.Vertices,1);   % make the connection array
                 lines{Z,4}.Faces = lines{Z,3}.Faces;                % "
                 contours(Z*params.Zstep,:) = makeContours(lines,Z); % construct the layer contours from the border lines
@@ -130,6 +133,7 @@ switch action,
                 else
                     errordlg('No previously saved interpolated contour file found')
                 end
+                contours(setdiff(1:size(contours,1),1:params.Zstep:size(contours,1)),:)=[];     %deletes all contours that cannot be seen anyway (due to Zstep)
             elseif strcmp(answer,'Normal')
                 if exist(fullfile(params.PathName,'ML-contours.mat'),'file')
                     load(fullfile(params.PathName,'ML-contours.mat'))
@@ -140,7 +144,8 @@ switch action,
                 ui = 0;
             end
         elseif strcmp(event.Character,'s')
-            save(fullfile(params.PathName,'ML-contours.mat'),'contours','lines')
+            save(fullfile(params.PathName,'ML-contours.mat'),'contours','lines','status')
+            msgbox('The contours have been saved','Save')
         end
         update_plot(F,sizM,Z,lines,contours,status,ui,M)
         
@@ -161,9 +166,9 @@ switch action,
         sizM = cat(2,[1;1;1],[size(M,1),size(M,2),size(M,3)]'); % construct matrix size info
         sizM = [sizM([2 1],1);sizM([2 1],2)];
         contours = cell(numel(info),4);         % initialize contours
-        lines = cell(numel(info),5);            % initialize border lines
-        Z = 1;                                  % initialize current Z plane
-        status = ones(numel(info),1);           % initialize Mode array
+        lines = cell(size(M,3),5);            % initialize border lines
+        Z = 5;                                  % initialize current Z plane
+        status = ones(size(M,3),1);           % initialize Mode array
         F = figure('Name','ML-Definer 2013','NumberTitle','off');   % initialize figure
         axis image;
         hold on
@@ -195,7 +200,8 @@ switch action,
         answer = questdlg('Proceed with contour processing and tree-MLyzing?');
         if strcmp(answer,'Yes')
             contours = interpz_contours(contours,[],'-ex-w');   % inter- and extrapolate contours to all zplanes 
-            save(fullfile(params.PathName,'ML-contours_interpolated.mat'),'contours','lines')
+            status(:) = 6;
+            save(fullfile(params.PathName,'ML-contours_interpolated.mat'),'contours','lines','status')
             answer = questdlg('Trees already transformed into whole DG?');
             if strcmp(answer,'No')
                 TreeConverter

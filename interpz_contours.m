@@ -8,7 +8,7 @@ if nargin < 1
     end
 end
 if nargin < 2 || isempty(max_z)
-    max_z = numel(contours);
+    max_z = size(contours,1);
 end
 if nargin < 3
     options = [];
@@ -20,7 +20,9 @@ if size(contours,1) < max_z
     contours(max_z,1:max_c)= {[]};
 end
 
-
+if strfind(options,'-w')
+    w = waitbar(0,'Interpolating z-planes');
+end
 for mc=1:max_c
     pairs =[];
     z_cont = zeros(2,1);
@@ -36,12 +38,11 @@ for mc=1:max_c
         contours(1:curr_z,mc) = {[]};
     else
         contours(1:curr_z,mc) = contours(ind,mc);
+        fprintf(sprintf('%d-%d\n',1,curr_z));
     end
     
     
-    if strfind(options,'-w')
-        w = waitbar(0,'Interpolating z-planes');
-    end
+
     while curr_z <= max_z
         curr_z = curr_z +1;
         fprintf(sprintf('%d\n',curr_z));
@@ -77,6 +78,10 @@ for mc=1:max_c
         else
             if curr_z == z_cont(2) && isempty(contours{z_cont(1)-1,mc}) && strfind(options,'-ex')
                 contours(1:z_cont(1)-1,mc) = interpolate(pairs,poly_first,poly_second,1:z_cont(1)-1,'pchip');
+                fprintf(sprintf('%d-%d\n',1,z_cont(1)-1));
+                if strfind(options,'-w')
+                    waitbar(sum(~cellfun(@isempty,contours(:)))/numel(contours),w);
+                end
             end
 
             ind = find(~empty(curr_z+1:end),1,'first');
@@ -88,6 +93,10 @@ for mc=1:max_c
                 else
                     contours(curr_z+1:max_z,mc) = {poly_first};
                 end
+                fprintf(sprintf('%d-%d\n',curr_z+1,size(contours,1)));
+                if strfind(options,'-w')
+                    waitbar(sum(~cellfun(@isempty,contours(:)))/numel(contours),w);
+                end
                 break
             else
                 z_cont(1) = curr_z;
@@ -98,7 +107,7 @@ for mc=1:max_c
             pairs =[];
         end
         if strfind(options,'-w')
-            waitbar(curr_Z/max_z,w);
+            waitbar(sum(~cellfun(@isempty,contours(:)))/numel(contours),w);
         end
     end
 end
@@ -126,13 +135,13 @@ end
         end
         this_polygons = cell(numel(zs),1);
         for z = 1:numel(zs)
-            curr_z = zs(z);
+            curr_z2 = zs(z);
             this_polygon.Vertices = zeros(size(pairs,1),2);
             this_polygon.Faces = 1:size(pairs,1);
             for p = 1:size(pairs,1)
                 x = [poly_first.Vertices(pairs(p,1),1),poly_second.Vertices(pairs(p,2),1)];
                 y = [poly_first.Vertices(pairs(p,1),2),poly_second.Vertices(pairs(p,2),2)];
-                this_polygon.Vertices(p,:) = [interp1([z_cont(1),z_cont(2)],x,curr_z),interp1([z_cont(1),z_cont(2)],y,curr_z,method)];
+                this_polygon.Vertices(p,:) = [interp1([z_cont(1),z_cont(2)],x,curr_z2,method),interp1([z_cont(1),z_cont(2)],y,curr_z2,method)];
             end
             this_polygons{z} = this_polygon;
         end
