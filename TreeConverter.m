@@ -1,22 +1,33 @@
-function [all_trees,MainDir] = TreeConverter(options)
-if nargin < 1
+function [all_trees,MainDir] = TreeConverter(path,options)
+if nargin < 2
     options = [];
 end
-MainDir = uigetdir([],'Select Root Directory of Animal');
+if nargin < 1
+    path = [];
+end
+MainDir = uigetdir(path,'Select Root Directory of Animal');
 if MainDir == 0
     return
 end
-animal = strfind(MainDir,'.');
-animal = MainDir(animal-1:end);     % find animal number
+
+% animal = strfind(MainDir,'.');
+% animal = MainDir(animal-1:end);     % find animal number
+% if ~isempty(strfind(animal,' '))
+%     animal = animal(1:strfind(animal,' ')-1);
+% end
+animal = regexp(MainDir,' ','split');
+animal = animal{~cellfun(@(x) isempty(strfind(x,'.')),animal)};
+% animal = str2double(regexp(animal,'\.','split'));
+
 root = dir(MainDir);                % list directory
 slices = cell(0,1);
 for n = 1:numel(root)
     sl = textscan(root(n).name ,'Slice %s');    %search for Slice directories
-    if ~isempty(sl{1})
+    if ~isempty(sl{1}) && root(n).isdir
         slices{end+1} = sl{1}{1};               %remember Slice number
     end
 end
-
+icc =  {'Ipsilateral','Contralateral'};
 ic = {'ipsi','contra'};
 for sl = 1:numel(slices)                        %go through slice directories
     
@@ -24,6 +35,7 @@ for sl = 1:numel(slices)                        %go through slice directories
     tracing = {tracing(~cat(1,tracing.isdir)).name};    %chooses only file names
     for ci = 1:2
         %         all_trees.(ic{ci}) = cell(0,1);
+        flag = false;
         if exist(fullfile(MainDir,sprintf('Slice %s',slices{sl}),ic{ci},'PartStart.txt'),'file')
             if strfind(options,'-s')
                 f= figure('Name',sprintf('RV-GFP Rat %s - Slice %s %s',animal,slices{sl},ic{ci}),'NumberTitle','off');
@@ -34,10 +46,25 @@ for sl = 1:numel(slices)                        %go through slice directories
             txt = textscan(txt,'%s','Delimiter','\n');
             txt = txt{1};
             part = cell(numel(txt),3);   %initialize
-            ct=0;
+            flag = true;
             for p = 1:numel(txt)
                 part(p,:) = textscan(txt{p},'%s %f64 %f64');    % scans the pth line
-                
+            end
+            
+        elseif exist(fullfile(MainDir,sprintf('Slice %s',slices{sl}),ic{ci},sprintf('%s_partROIs.zip',icc{ci})),'file')
+            [cvsROIs] = ReadImageJROI(fullfile(MainDir,sprintf('Slice %s',slices{sl}),ic{ci},sprintf('%s_partROIs.zip',icc{ci})));
+%             [x, y] = cellfun(@(x) deal(x.vnRectBounds(1), x.vnRectBounds(2)),cvsROIs);
+            part = cell(numel(cvsROIs),3);   %initialize            
+            flag = true;
+            for p = 1:numel(cvsROIs)
+                part(p,1) = textscan(cvsROIs{p}.strName,'Part%s');
+                part(p,2:3) =  {cvsROIs{p}.vnRectBounds(2),cvsROIs{p}.vnRectBounds(1)}; % height is y!
+            end
+        end
+        
+        if flag
+            ct=0;
+            for p = 1:size(part,1)
                 ind = find(~cellfun(@isempty,strfind(tracing,sprintf('%s_%s_%s_part%s',animal,slices{sl},ic{ci},part{p,1}{1}))));
                 
                 if ~isempty(ind)
@@ -62,7 +89,7 @@ for sl = 1:numel(slices)                        %go through slice directories
                 end
             end
             if isfield(all_trees(str2num(slices{sl})),ic{ci}) && ~isempty (all_trees(str2num(slices{sl})).(ic{ci}))
-                save_tree(all_trees(str2num(slices{sl})).(ic{ci}),fullfile(MainDir,sprintf('Slice %s',slices{sl}),sprintf('%s_%s_%s_all_trees.mtr',animal,slices{sl},ic{ci})))
+                save_tree({all_trees(str2num(slices{sl})).(ic{ci})},fullfile(MainDir,sprintf('Slice %s',slices{sl}),sprintf('%s_%s_%s_all_trees.mtr',animal,slices{sl},ic{ci})))
             elseif strfind(options,'-s')
                 delete(f)
             end
