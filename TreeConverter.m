@@ -33,6 +33,7 @@ for sl = 1:numel(slices)                        %go through slice directories
     
     tracing = dir(fullfile(MainDir,sprintf('Slice %s',slices{sl}),'Tracings')); % list tracing folder
     tracing = {tracing(~cat(1,tracing.isdir)).name};    %chooses only file names
+    tracing = tracing(cellfun(@(x) strcmp(x(end-3:end),'.mtr'),tracing));   %choose only mtrs
     for ci = 1:2
         %         all_trees.(ic{ci}) = cell(0,1);
         flag = false;
@@ -58,6 +59,9 @@ for sl = 1:numel(slices)                        %go through slice directories
             flag = true;
             for p = 1:numel(cvsROIs)
                 part(p,1) = textscan(cvsROIs{p}.strName,'Part%s');
+                if isempty(part{p,1})
+                    part(p,1) = textscan(cvsROIs{p}.strName,'%s');
+                end
                 part(p,2:3) =  {cvsROIs{p}.vnRectBounds(2),cvsROIs{p}.vnRectBounds(1)}; % height is y!
             end
         end
@@ -66,7 +70,9 @@ for sl = 1:numel(slices)                        %go through slice directories
             ct=0;
             for p = 1:size(part,1)
                 ind = find(~cellfun(@isempty,strfind(tracing,sprintf('%s_%s_%s_part%s',animal,slices{sl},ic{ci},part{p,1}{1}))));
-                
+                if isempty(ind)
+                    ind = find(~cellfun(@isempty,strfind(tracing,sprintf('%s_%s_%s_part%s',animal,slices{sl},icc{ci},part{p,1}{1}))));
+                end
                 if ~isempty(ind)
                     tree = load_tree(fullfile(MainDir,sprintf('Slice %s',slices{sl}),'Tracings',tracing{ind}));
                     if ~isstruct(tree{1}) && iscell(tree{1})

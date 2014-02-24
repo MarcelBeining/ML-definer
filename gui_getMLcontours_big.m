@@ -255,7 +255,12 @@ switch action,
                     nempty = find(all(~cellfun(@isempty,lines),2)); %find(status == 6);
                     %             nempty = find(~cellfun(@isempty,lines(:,5)));
                     lines_corrected(nempty * params.Zstep,:) = lines(nempty,:);
-                    lines_corrected = interpz_lines(lines_corrected,[],'-ex-w-s');   % inter- and extrapolate lines to all zplanes
+                    answer = questdlg('Extrapolate contours or use last available contour?','Extrapolation','Extrapolate','Last contour','Extrapolate');
+                    if strcmp(answer,'Extrapolate')
+                        lines_corrected = interpz_lines(lines_corrected,[],'-ex-w-s');   % inter- and extrapolate lines to all zplanes
+                    else
+                        lines_corrected = interpz_lines(lines_corrected,[],'-w-s');   % interpolate lines to all zplanes
+                    end
                 else
                     
                     col = {'k','y','b','g','r','w'};
@@ -279,7 +284,7 @@ switch action,
                 lines(end,:) = lines_corrected(end,:);
                 status(:) = 6;
                 save(fullfile(params.PathName,'ML-contours_interpolated.mat'),'contours','lines','lines_corrected','status')
-                status = statusx;
+%                 status = statusx;
                 answer = questdlg('Trees already transformed into whole DG?');
                 if strcmp(answer,'No')
                     TreeConverter(params.PathName)
@@ -438,8 +443,8 @@ end
         nempty = find(~cellfun(@isempty,lins)); % those nonempty line entries
         c = [Inf Inf;-Inf -Inf];    % initialize minmax array
         for ne = nempty
-            c(1,:) = min([c(1,:);lins{ne}.Vertices]);   % find minimum
-            c(2,:) = max([c(2,:);lins{ne}.Vertices]);   % find maximum
+            c(1,:) = min([c(1,:);lins{ne}.Vertices],[],1);   % find minimum
+            c(2,:) = max([c(2,:);lins{ne}.Vertices],[],1);   % find maximum
         end
     end
 %%
