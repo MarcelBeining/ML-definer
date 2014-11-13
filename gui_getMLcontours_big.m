@@ -69,7 +69,7 @@ switch action,
             end
             if status(Z) == 5
                 w = waitbar(0,'Calculating layer borders, please wait...');
-                
+                save(fullfile(params.PathName,'ML-contours.mat'),'contours','lines','status')
              
                 
                 SGCL = interp_border(lines{Z,1}.Vertices,params.intpoints,1,'smooth',params.relsmooth); % interpolating SGCL line

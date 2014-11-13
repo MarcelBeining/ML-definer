@@ -76,10 +76,10 @@ for sl = 1:numel(slices)                        %go through slice directories
         if flag
             ct=0;
             for p = 1:size(part,1)
-                ind = find(~cellfun(@isempty,strfind(tracing,sprintf('%s_%s_%s_part%s',animal,slices{sl},ic{ci},part{p,1}{1}))) | ~cellfun(@isempty,strfind(tracing,part{p,1}{1})));
-                if isempty(ind)
-                    ind = find(~cellfun(@isempty,strfind(tracing,sprintf('%s_%s_%s_part%s',animal,slices{sl},icc{ci},part{p,1}{1}))));
-                end
+                ind = find(~cellfun(@isempty,strfind(tracing,sprintf('%s_%s_%s_part%s',animal,slices{sl},ic{ci},part{p,1}{1}))) | ~cellfun(@isempty,strfind(tracing,sprintf('%s_%s_%s_%s',animal,slices{sl},ic{ci},part{p,1}{1}))) | ~cellfun(@isempty,strfind(tracing,sprintf('%s_part%s',icc{ci},part{p,1}{1}))) | ~cellfun(@isempty,strfind(tracing,sprintf('%s_%s',icc{ci},part{p,1}{1}))));
+%                 if isempty(ind)
+%                     ind = find(~cellfun(@isempty,strfind(tracing,sprintf('%s_%s_%s_part%s',animal,slices{sl},icc{ci},part{p,1}{1}))));
+%                 end
                 if ~isempty(ind)
                     if numel(ind) > 1
                         ind = ind(~cellfun(@isempty,strfind(tracing(ind),icc{ci})) | ~cellfun(@isempty,strfind(tracing(ind),ic{ci})));
