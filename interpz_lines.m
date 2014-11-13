@@ -153,6 +153,7 @@ end
                 y = [poly_first.Vertices(pairs(p,1),2),poly_second.Vertices(pairs(p,2),2)];
                 this_polygon.Vertices(p,:) = [interp1([z_cont(1),z_cont(2)],x,curr_z2,method),interp1([z_cont(1),z_cont(2)],y,curr_z2,method)];
             end
+% % % % % % %             sum(diff(this_polygon.Vertices(1:end-1,:),1,1).*diff(this_polygon.Vertices(2:end,:),1,1),2)
             this_polygons{z} = this_polygon;
         end
         

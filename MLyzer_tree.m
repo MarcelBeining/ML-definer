@@ -4,7 +4,7 @@ if nargin < 4
     options = [];
 end
 if nargin < 3 || isempty(sample_rate)
-    if isfield(contours{1,1},sample_rate)
+    if isfield(contours{1,1},'sample_rate')
         sample_rate = contours{1,1}.sample_rate;
     else
         sample_rate = 1;

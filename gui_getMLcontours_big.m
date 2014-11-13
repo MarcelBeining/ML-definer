@@ -1,7 +1,7 @@
 %%
 function gui_getMLcontours_big(src, event, action,par)
 
-global F M sizM Z lines lines_corrected trees status contours params        %initialization
+global F M sizM Z lines lines_corrected trees status contours params endstatus       %initialization
 
 if nargin > 3
     params = par;
@@ -12,6 +12,8 @@ elseif isempty(params)          % then standard parameters are loaded
     params.relsmooth = 0.02;     % filter size of smoothing, 0.02 = 2% of all points
     params.Zstep = 5;            % only every xth zplane is loaded (for big stacks)
     params.sample_rate = 1;
+    params.curvfilt = 0.05;
+    params.min_intervall = 100;     % min intervall when using curve interpolation with pointdistribution
 end
 if nargin<1
     action = 'init';
@@ -71,20 +73,47 @@ switch action,
              
                 
                 SGCL = interp_border(lines{Z,1}.Vertices,params.intpoints,1,'smooth',params.relsmooth); % interpolating SGCL line
+%                 SGCL = lines{Z,1}.Vertices;
                 waitbar(1/6,w)
                 fissura = interp_border(lines{Z,5}.Vertices,params.intpoints,1,'smooth',params.relsmooth); % interpolating GCL line
                 waitbar(2/6,w)
                 GCL = interp_border(lines{Z,2}.Vertices,params.intpoints,1,'smooth',params.relsmooth); % interpolating fissura line
                 waitbar(3/6,w)
                 
-                curv = sqrt(sum(diff([SGCL GCL fissura],2,1).^2,2));
+%                %%old  curv = [0; sqrt(sum(diff([SGCL GCL fissura],2,1).^2,2))];    % make pdistr for interp dependent on curvature level
+%                 curv = [0;sqrt(sum(diff(SGCL,2,1).^2,2));0];    % make pdistr for interp dependent on curvature level
+%                 curv = [0;sqrt(sum(diff(GCL,2,1).^2,2));0];    % make pdistr for interp dependent on curvature level
+                curv = sqrt(sum(diff(SGCL,2,1).^2,2));    % make pdistr for interp dependent on curvature level
+%                 curv=curv.^2; % enhance biggest curves
+                if round(size(curv,1)*params.curvfilt) ~= size(curv,1)*params.curvfilt
+                    kern = rem(floor(size(curv,1)*params.curvfilt),2) * floor(size(curv,1)*params.curvfilt) + rem(ceil(size(curv,1)*params.curvfilt),2) * ceil(size(curv,1)*params.curvfilt); % rounds to the odd number
+                else
+                    kern = size(curv,1)*params.curvfilt + ~rem(size(curv,1)*params.curvfilt ,2) ;
+                end
+                tmp = curv([1,end]);
+                curv = convn (padarray(curv,(kern-1)/2,'replicate'), ones (1, kern)' / kern, 'valid');
+                curv = flipud(convn (padarray(flipud(curv),(kern-1)/2,'replicate'), ones (1, kern)' / kern, 'valid'));
+                curv([1,end]) = tmp;   % accounts for smoothing error at edges
                 
-                SGCL = interp_border(SGCL,params.intpoints,3,[],[],curv); % interpolating SGCL line
-                waitbar(1/6,w)
-                fissura = interp_border(fissura,params.intpoints,3,[],[],curv); % interpolating GCL line
-                waitbar(2/6,w)
-                GCL = interp_border(GCL,params.intpoints,3,[],[],curv); % interpolating fissura line
-                waitbar(3/6,w)
+                [nix, ind] = max(curv);
+                curv = exp(1:0.1:10);
+                tSGCL = SGCL;
+%                 tSGCL(1:ceil(params.intpoints/2),:) = interp_border(SGCL(1:ind+1,:),ceil(params.intpoints/2),3,[],[],curv(1:ind),params.min_intervall); % interpolating SGCL line
+%                 tSGCL(ceil(params.intpoints/2)+1:end,:) = interp_border(SGCL(ind+2:end,:),floor(params.intpoints/2),3,[],[],curv(ind+1:end),params.min_intervall); % interpolating SGCL line
+                tSGCL(1:ceil(params.intpoints/2),:) = interp_border(SGCL(1:ind+1,:),ceil(params.intpoints/2),3,[],[],curv,params.min_intervall); % interpolating SGCL line
+                curv = fliplr(curv);
+%                 curv(1) = 0;
+                tSGCL(ceil(params.intpoints/2)+1:end,:) = interp_border(SGCL(ind+1:end,:),floor(params.intpoints/2),4,[],[],curv,params.min_intervall); % interpolating SGCL line
+                SGCL = tSGCL;
+%                 GCL = interp_border(GCL,params.intpoints,3,[],[],curv,params.min_intervall); % interpolating SGCL line
+%                 waitbar(1/6,w)
+                
+                [GCL fissura] = make_orthogonal_borders(SGCL,GCL,fissura);
+%                 [SGCL fissura] = make_orthogonal_borders(GCL,SGCL,fissura);     %CAUTION Changed to gcl
+%             %%old    fissura = interp_border(fissura,params.intpoints,3,[],[],curv); % interpolating GCL line
+%             %%old    waitbar(2/6,w)
+%             %%old    GCL = interp_border(GCL,params.intpoints,3,[],[],curv); % interpolating fissura line
+%             %%old    waitbar(3/6,w)
                 
                 lines{Z,2}.Vertices = GCL;
                 lines{Z,2}.Faces = 1:params.intpoints;
@@ -128,6 +157,7 @@ switch action,
             status(Z) = m(status(Z));
             ui=2;
         elseif strcmp(event.Key,'backspace')    % go back one mode
+            endstatus = false;
             m = [1 1 0 0 2 5];             % the way in which the mode changes backwards
             ui = 2;
             
@@ -152,6 +182,7 @@ switch action,
             ui = 2;
             answer = questdlg('Load normal or interpolated contours?','Loading...','Normal','Interpolated','Cancel','Interpolated');
             if strcmp(answer,'Interpolated')
+                endstatus = true;
                 if exist(fullfile(params.PathName,'ML-contours_interpolated.mat'),'file')
                     load(fullfile(params.PathName,'ML-contours_interpolated.mat'))
                 else
@@ -159,8 +190,11 @@ switch action,
                 end
 %                 contours(setdiff(1:size(contours,1),1:params.Zstep:size(contours,1)),:)=[];     %deletes all contours that cannot be seen anyway (due to Zstep)
             elseif strcmp(answer,'Normal')
+                endstatus = false;
                 if exist(fullfile(params.PathName,'ML-contours.mat'),'file')
                     load(fullfile(params.PathName,'ML-contours.mat'))
+                    status = sum(~cellfun(@isempty,lines),2) +1;
+
                 else
                     errordlg('No previously saved interpolated contour file found')
                 end
@@ -168,12 +202,17 @@ switch action,
                 ui = 0;
             end
         elseif strcmp(event.Character,'s')
-            save(fullfile(params.PathName,'ML-contours.mat'),'contours','lines','status')
+            if endstatus
+                save(fullfile(params.PathName,'ML-contours_interpolated.mat'),'contours','lines','lines_corrected','status')
+            else
+                save(fullfile(params.PathName,'ML-contours.mat'),'contours','lines','status')
+            end
             msgbox('The contours have been saved','Save')
         end
         update_plot(F,sizM,Z,lines,contours,status,ui,M)
         
     case 'init'             % initialization at the beginning of the program
+        endstatus = false;
         [params.FileName,params.PathName] = uigetfile({'*.tif','*.tif - Multi-frame TIF file'},'Please open file');
         if params.FileName == 0     % if cancel o.ä. was pressed
             return
@@ -192,10 +231,16 @@ switch action,
                 end
 %             end
         end
-        answer = inputdlg('Please give the sampling rate of the stack','Sampling Rate',1,{'1'});
-        sample_rate = str2num(answer{1});
+        if ~isempty(params.FileName(strfind(params.FileName,'_down')+5))
+            sample_rate = str2num(params.FileName(strfind(params.FileName,'_down')+5));
+        else
+            answer = inputdlg('Please give the sampling rate of the stack','Sampling Rate',1,{'1'});
+            sample_rate = str2num(answer{1});
+        end
         if ~isempty(sample_rate) && isnumeric(sample_rate)
             params.sample_rate = sample_rate;
+        else
+            warndlg('Sample Rate is set to 1')
         end
         M = zeros(info(1).Height,info(1).Width,ceil(numel(info)/params.Zstep),sprintf('uint%d',ceil(info(1).BitDepth/8)*8));    % construct picture matrix (zstep,BitDepth important)
         w = waitbar(0,'Loading Tif file...');
@@ -231,7 +276,11 @@ switch action,
     case 'close'            % closing the program
         answer = questdlg('Save contours?');
         if strcmp(answer,'Yes')
-            save(fullfile(params.PathName,'ML-contours.mat'),'contours','lines','status')
+            if endstatus 
+                 save(fullfile(params.PathName,'ML-contours_interpolated.mat'),'contours','lines','lines_corrected','status')
+            else
+                save(fullfile(params.PathName,'ML-contours.mat'),'contours','lines','status')
+            end
 %         elseif strcmp(answer,'No')
 %             clearvars contours lines status
         elseif strcmp(answer,'Cancel') || isempty(answer)
@@ -292,7 +341,7 @@ switch action,
                     return
                 end
                 [FileName,PathName] = uigetfile({'*.mtr','*.mtr - Reconstructed Trees (Treestoolbox)'},'Please open whole DG trees file corresponding to the just segmentated DG',params.PathName);
-                if isempty(FileName)
+                if isempty(FileName) || ~ischar(FileName)
                     return
                 end
                 DGtrees = load_tree(fullfile(PathName,FileName));
@@ -305,21 +354,24 @@ switch action,
                     figure('Name','Result MLyzed trees','NumberTitle','off');
                     hold on
                     for t = 1:numel(DGtrees)
-                        plot_tree(DGtrees{t},DGtrees{t}.R)
+                        plot_tree(DGtrees{t},DGtrees{t}.R);
                     end
                     for i = 1:5
                         patch(contours{1,i}.Vertices(:,1)*DGtrees{t}.x_scale*params.sample_rate , contours{1,i}.Vertices(:,2)*DGtrees{t}.y_scale*params.sample_rate , repmat(DGtrees{t}.z_scale,[numel(contours{1,i}.Vertices(:,1)) 1]),col{i},'FaceAlpha',0.4);
                         patch(contours{end,i}.Vertices(:,1)*DGtrees{t}.x_scale*params.sample_rate , contours{end,i}.Vertices(:,2)*DGtrees{t}.y_scale*params.sample_rate , repmat(size(contours,1)*DGtrees{t}.z_scale,[numel(contours{end,i}.Vertices(:,1)) 1]),col{i},'FaceAlpha',0.4);
                     end
+                    set(gca,'YDir','reverse')
                 end
                 save_tree({DGtrees},fullfile(PathName,sprintf('%s_MLyzed.mtr',FileName(1:end-4))))    %save MLyzed trees
             end
+            endstatus = true;
         end
 end
 
 %%
     function update_plot(F,sizM,Z,lines,contours,status,mode,M)     % updates figure
         HP = get(F,'UserData');     % get handles to figure children
+       
         %         hold off
         if mode == 1 && numel(HP)>1 % update only line to cursor (moving)
             HHP = HP(2);
@@ -337,6 +389,11 @@ end
             set(gca,'color','black')
         else
             return
+        end
+        if endstatus
+            set(F,'Name',sprintf('%s - Contours - finished',params.FileName))
+        else
+            set(F,'Name',sprintf('%s - Contours - in process',params.FileName))
         end
         c = minmaxPoint(lines(Z,:));    % get minimum and maximum point of all lines
         xlim([min(sizM(1),c(1)),max(sizM(3),c(2))]) % define image size correspondingly
@@ -359,6 +416,22 @@ end
                 HP(p+7)=patch(contours{Z*params.Zstep,p}.Vertices(:,1),contours{Z*params.Zstep,p}.Vertices(:,2),col{p});%,'FaceAlpha',0.3);%,'NextPlot', 'add');
             end
         else
+            if mode~=1              % also plot all other lines if they exist
+                if status(Z) == 6
+                    mz = 5;
+                    for l = 1:numel(lines{Z,1}.Faces)
+                        HP(l+mz+3) = plot(cellfun(@(x) x.Vertices(l,1),lines(Z,1:mz)),cellfun(@(x) x.Vertices(l,2),lines(Z,1:mz)),'m-');
+                    end
+                else
+                    mz = status(Z);
+                end
+                for mo = 1:mz
+                    if isfield(lines{Z,mo},'Vertices') && ~isempty(lines{Z,mo}.Vertices)
+                        HP(mo+3) = plot(lines{Z,mo}.Vertices(:,1),lines{Z,mo}.Vertices(:,2),sprintf('%sx-',col{mo}));
+                    end
+                end
+
+            end
             if status(Z) ~= 6 && isfield(lines{Z,status(Z)},'Vertices') && ~isempty(lines{Z,status(Z)}.Vertices)
                 Point = getPoint(sizM,0);
                 if mode ~=1
@@ -366,18 +439,7 @@ end
                 end
                 HP(2) = plot([lines{Z,status(Z)}.Vertices(end,1);Point(1)],[lines{Z,status(Z)}.Vertices(end,2);Point(2)],sprintf('%s-',col{status(Z)}));    % plot line to mouse
             end
-            if mode~=1              % also plot all other lines if they exist
-                if status(Z) == 6
-                    mz = 5;
-                else
-                    mz = status(Z);
-                end
-                for mo = 1:mz
-                    if isfield(lines{Z,mo},'Vertices') && ~isempty(lines{Z,mo}.Vertices)
-                        HP(mo+3) = plot(lines{Z,mo}.Vertices(:,1),lines{Z,mo}.Vertices(:,2),sprintf('%s-',col{mo}));
-                    end
-                end
-            end
+            
         end
         set(F,'UserData',HP)            % store handles
     end
@@ -447,5 +509,129 @@ end
             c(2,:) = max([c(2,:);lins{ne}.Vertices],[],1);   % find maximum
         end
     end
+
+    function [newGCL newfissura] = make_orthogonal_borders(SGCL,GCL,fissura)
+        flag = [false false];
+        newGCL(1,:) = GCL(1,:);
+        newGCL(size(GCL,1),:) = GCL(end,:);
+        newfissura(1,:) = fissura(1,:);
+        newfissura(size(fissura,1),:) = fissura(end,:);
+        lastp = 1;
+        curv = sqrt(sum(diff(GCL,2,1).^2,2));    % make pdistr for interp dependent on curvature level
+        [nix,ind] = max(curv);
+        if abs(ind-size(GCL,1)/2) < size(GCL,1)/10
+            newGCL(ceil(size(GCL,1)/2),:) = GCL(ind,:);
+            flag(1) = true;
+        end
+        curv = sqrt(sum(diff(fissura,2,1).^2,2));    % make pdistr for interp dependent on curvature level
+        [nix,ind] = max(curv);
+        if abs(ind-size(GCL,1)/2) < size(GCL,1)/10
+            newfissura(ceil(size(fissura,1)/2),:) = fissura(ind,:);
+            flag(2) = true;
+        end
+        for b = 2:size(SGCL,1)-1
+%             flag=false;
+            if all(flag) && ceil(size(GCL,1)/2) == b
+                flag = [false false];
+                lastp = find(all(repmat(newGCL(ceil(size(GCL,1)/2),:),[size(GCL,1) 1])==GCL,2));
+            else
+                norm = [1, -(SGCL(b+1,1)-SGCL(b-1,1))/(SGCL(b+1,2)-SGCL(b-1,2))];  %calculate norm vector on SCGL line
+                if isnan(norm(2))
+                    errordlg('two points at same place')
+                    return
+                end
+                vec = [SGCL(b,:)-norm*10000 ; SGCL(b,:)+norm*10000];
+                [xi,yi,ii] = polyxpoly(vec(:,1),vec(:,2),GCL(:,1),GCL(:,2));   %calculate intersection of GCL line with norm vector
+                ind = find(ii(:,2) >= lastp);
+                if numel(ind)>1
+                    [nix, ind] = min(abs(ii(:,2)-b)); % find intersection point which is closer to current site
+                end
+                if ii(ind,2)-lastp > 15      % there might be some problem with finding the correct partner.. if this happens, take the old point and go on
+                    newGCL(b,:) = newGCL(b-1,:);
+                else
+                    newGCL(b,:) = [xi(ind) yi(ind)];    % this intersection is new point
+                    lastp = ii(ind,2);
+                end
+            end
+% %    for debug         figure;plot(newGCL(:,1),newGCL(:,2),'x-'),hold all,plot(SGCL(:,1),SGCL(:,2),'x-'),plot(SGCL(b,1),SGCL(b,2),'-xr')
+%                 figure;plot(newGCL(:,1),newGCL(:,2),'x-'),hold all,plot(SGCL(:,1),SGCL(:,2),'x-'),plot(SGCL(b,1),SGCL(b,2),'-xr')
+%             %             dot([1; -(SGCL(b,1)-SGCL(b-1,1))/(SGCL(b,2)-SGCL(b-1,2))] ,(SGCL(b,:)-SGCL(b-1,:)))
+%             norm1 = [1, -(SGCL(b,1)-SGCL(b-1,1))/(SGCL(b,2)-SGCL(b-1,2))];  %calculate norm vector on SCGL line
+%             if isnan(norm1(2))
+%                 flag = true;
+%             else
+%                 vec = [SGCL(b,:)-norm1*10000 ; SGCL(b,:)+norm1*10000];
+%                 [xi,yi,ii1] = polyxpoly(vec(:,1),vec(:,2),GCL(:,1),GCL(:,2));   %calculate intersection of GCL line with norm vector
+%                 [nix, ind1] = min(abs(ii1(:,2)-b)); % find intersection point which is closer to current site
+% %                 [nix , ind] = min(sqrt(sum((repmat(GCL(b-1,:),numel(xi),1)-[xi,yi]).^2,2)),[],1);
+%                 newGCL(b,:) = [xi(ind1) yi(ind1)];    % this intersection is new point
+%             end
+%             if b~= size(SGCL,1)
+%                 norm2 = [1, -(SGCL(b,1)-SGCL(b+1,1))/(SGCL(b,2)-SGCL(b+1,2))];  %do the same of above again for the norm vector with next GCL point
+%                 if isnan(norm2(2))
+%                     if isnan(norm1(2))
+%                         errordlg('To many points with same coord...')
+%                         return
+%                     end
+%                 else
+%                     vec = [SGCL(b,:)-norm2*10000 ; SGCL(b,:)+norm2*10000];
+%                     [xi,yi,ii2] = polyxpoly(vec(:,1),vec(:,2),GCL(:,1),GCL(:,2));
+%                     [nix, ind2] = min(abs(ii2(:,2)-b)); % find intersection point which is closer to current site
+% %                     [nix , ind] = min(sqrt(sum((repmat(GCL(b-1,:),numel(xi),1)-[xi,yi]).^2,2)),[],1);
+%                     if flag
+%                         newGCL(b,:) = [xi(ind2) yi(ind2)];
+%                     else
+%                         if abs(ii2(ind2,2) - ii1(ind1,2)) > 1   % mean could make a bad coordinate so stay at the GCL
+%                             newGCL(b,:) = GCL(round(mean([ii2(ind2,2),ii1(ind1,2)])),:);
+%                         else
+%                             newGCL(b,:) = mean([newGCL(b,:);[xi(ind2) yi(ind2)]],1);
+%                         end
+%                     end
+%                 end
+%             end
+            %now use the point of SGCL and GCL to find orthogonal point at
+            %fissura
+            vec = [SGCL(b,:) ; SGCL(b,:) + (newGCL(b,:) - SGCL(b,:))*10000];
+            [xi,yi] = polyxpoly(vec(:,1),vec(:,2),fissura(:,1),fissura(:,2));   %calculate intersection of fissura line with norm vector
+            if ~isempty(xi)
+
+                newfissura(b,:) = [unique(xi),unique(yi)];
+            else
+                newfissura(b,:) = fissura(b,:);
+            end
+        end
+        %both attempts to avoid crossing overs raised problems themselves...
+        newfissura = orderline(newfissura);
+        newGCL = orderline(newGCL);
+%         [newfissura(:,1),newfissura(:,2)] = poly2cw(newfissura(:,1),newfissura(:,2));
+%         newfissura = flipud(newfissura);
+%         [newGCL(:,1),newGCL(:,2)] = poly2cw(newGCL(:,1),newGCL(:,2));
+%         newGCL = flipud(newGCL);
+    end
 %%
+    function outline = orderline(inline)
+%         templine = NaN(size(inline,1),size(inline,2),size(inline,1));
+%         for i = 0:size(inline,1)-1
+%             templine(:,:,i) = circshift(inline,i);
+%         end
+%         templine = sqrt(sum(diff(templine,1,3).^2,2));
+        outline = zeros(size(inline,1),2);
+        outline(1,:) = inline(1,:);
+        h = ceil(size(inline,1)/2);
+        outline(h,:) = inline(h,:);
+        inline(h,:) = [];
+%         for i = 1:size(inline,1)-1
+%             min(templine(i,1,:))
+%         end
+    ind = 1;
+    for il = 2:size(outline,1)
+        if il == h
+            continue
+        else
+            inline(ind,:) = [];
+        end
+        [nix,ind] = min(sqrt(sum((repmat(outline(il-1,:),[size(inline,1),1])-inline).^2,2)));
+        outline(il,:) = inline(ind,:);
+    end
+    end
 end

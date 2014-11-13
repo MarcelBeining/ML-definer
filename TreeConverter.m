@@ -50,8 +50,11 @@ for sl = 1:numel(slices)                        %go through slice directories
             flag = true;
             for p = 1:numel(txt)
                 part(p,:) = textscan(txt{p},'%s %f64 %f64');    % scans the pth line
+                if isempty(strfind(part{p,1}{1},'art'))
+                    part{p,1}{1} = strcat('part',part{p,1}{1});
+                end
             end
-            
+
         elseif exist(fullfile(MainDir,sprintf('Slice %s',slices{sl}),ic{ci},sprintf('%s_partROIs.zip',icc{ci})),'file')
             [cvsROIs] = ReadImageJROI(fullfile(MainDir,sprintf('Slice %s',slices{sl}),ic{ci},sprintf('%s_partROIs.zip',icc{ci})));
 %             [x, y] = cellfun(@(x) deal(x.vnRectBounds(1), x.vnRectBounds(2)),cvsROIs);
@@ -61,6 +64,10 @@ for sl = 1:numel(slices)                        %go through slice directories
                 part(p,1) = textscan(cvsROIs{p}.strName,'Part%s');
                 if isempty(part{p,1})
                     part(p,1) = textscan(cvsROIs{p}.strName,'%s');
+                    part{p,1}{1} =  part{p,1}{1}(cell2mat(strfind( part{p,1},'art'))-1:end);
+                end
+                if isempty(strfind(part{p,1}{1},'art'))
+                    part{p,1}{1} = strcat('part',part{p,1}{1});
                 end
                 part(p,2:3) =  {cvsROIs{p}.vnRectBounds(2),cvsROIs{p}.vnRectBounds(1)}; % height is y!
             end
@@ -69,17 +76,23 @@ for sl = 1:numel(slices)                        %go through slice directories
         if flag
             ct=0;
             for p = 1:size(part,1)
-                ind = find(~cellfun(@isempty,strfind(tracing,sprintf('%s_%s_%s_part%s',animal,slices{sl},ic{ci},part{p,1}{1}))));
+                ind = find(~cellfun(@isempty,strfind(tracing,sprintf('%s_%s_%s_part%s',animal,slices{sl},ic{ci},part{p,1}{1}))) | ~cellfun(@isempty,strfind(tracing,part{p,1}{1})));
                 if isempty(ind)
                     ind = find(~cellfun(@isempty,strfind(tracing,sprintf('%s_%s_%s_part%s',animal,slices{sl},icc{ci},part{p,1}{1}))));
                 end
                 if ~isempty(ind)
-                    tree = load_tree(fullfile(MainDir,sprintf('Slice %s',slices{sl}),'Tracings',tracing{ind}));
+                    if numel(ind) > 1
+                        ind = ind(~cellfun(@isempty,strfind(tracing(ind),icc{ci})) | ~cellfun(@isempty,strfind(tracing(ind),ic{ci})));
+                        if numel(ind) >1
+                            warndlg(sprintf('There are more than one mtr files which have "%s" in their name. Now the first file is chosen. If wrong, please check and rename',part{p,1}{1}),'Multiple Files','replace')
+                        end
+                    end
+                    tree = load_tree(fullfile(MainDir,sprintf('Slice %s',slices{sl}),'Tracings',tracing{ind(1)}));
                     if ~isstruct(tree{1}) && iscell(tree{1})
                        tree = tree{1}; 
                     end
                     for t = 1:numel(tree)
-                        if strcmp(tree{t}.done,'yes')
+                        if isfield(tree{t},'done') && strcmp(tree{t}.done,'yes')
                             tr = tree{t};
                             tr.X = tr.X + part{p,2} * tr.x_scale;
                             tr.Y = tr.Y + part{p,3} * tr.y_scale;
@@ -94,7 +107,7 @@ for sl = 1:numel(slices)                        %go through slice directories
                     ct = ct + t;
                 end
             end
-            if isfield(all_trees(str2num(slices{sl})),ic{ci}) && ~isempty (all_trees(str2num(slices{sl})).(ic{ci}))
+            if numel(all_trees) >= str2num(slices{sl}) && isfield(all_trees(str2num(slices{sl})),ic{ci}) && ~isempty (all_trees(str2num(slices{sl})).(ic{ci}))
                 save_tree({all_trees(str2num(slices{sl})).(ic{ci})},fullfile(MainDir,sprintf('Slice %s',slices{sl}),sprintf('%s_%s_%s_all_trees.mtr',animal,slices{sl},ic{ci})))
             elseif strfind(options,'-s')
                 delete(f)
