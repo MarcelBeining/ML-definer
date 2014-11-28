@@ -32,7 +32,28 @@ switch action,
         if status(Z)~=6
             if isfield(lines{Z,status(Z)},'Vertices') && ~isempty(lines{Z,status(Z)}.Vertices)
                 Point = getPoint(sizM,0);
-                lines{Z,status(Z)}.Vertices = [lines{Z,status(Z)}.Vertices; Point(1), Point(2)];    %add current point to line
+%                 lines{Z,status(Z)}.Vertices = [lines{Z,status(Z)}.Vertices; Point(1), Point(2)];    %add current point to line
+                sempty = find(~cellfun(@isempty,lines(Z,:)));
+                [m, indi] = min(cellfun(@(x) min(sqrt((x.Vertices(:,1)-Point(1)).^2+(x.Vertices(:,2)-Point(2)).^2)),lines(Z,sempty)));
+                if size(lines{Z,sempty(indi)}.Vertices,1) == 1
+                    lines{Z,sempty(indi)}.Vertices = [lines{Z,sempty(indi)}.Vertices; Point(1), Point(2)];    %add current point to line
+                else
+                    dist = sqrt((lines{Z,sempty(indi)}.Vertices(:,1)-Point(1)).^2+(lines{Z,sempty(indi)}.Vertices(:,2)-Point(2)).^2);
+                    [m, indy] = min(dist);    % find nearest point of the line to mouse cursor
+                    %                     dist(indy) = Inf;
+                    if indy+1 > numel(dist)
+                         lines{Z,sempty(indi)}.Vertices = [lines{Z,sempty(indi)}.Vertices; Point(1), Point(2)];
+                    elseif indy-1 == 0
+                        lines{Z,sempty(indi)}.Vertices = [ Point(1), Point(2); lines{Z,sempty(indi)}.Vertices];
+                    else
+                        [m, indy2] = min(dist([indy-1,indy+1]));
+                        if indy2 == 1
+                            lines{Z,sempty(indi)}.Vertices = [lines{Z,sempty(indi)}.Vertices(1:indy-1,:); Point(1), Point(2); lines{Z,sempty(indi)}.Vertices(indy:end,:)];    %add current point to line
+                        else
+                            lines{Z,sempty(indi)}.Vertices = [lines{Z,sempty(indi)}.Vertices(1:indy,:); Point(1), Point(2); lines{Z,sempty(indi)}.Vertices(indy+1:end,:)];    %add current point to line
+                        end
+                    end
+                end
             else
                 lines{Z,status(Z)}.Vertices = getPoint(sizM,0);     % add first point of line
                 lines{Z,status(Z)}.sample_rate = params.sample_rate;
@@ -42,9 +63,12 @@ switch action,
     case 'deletepoint'
         if status(Z) ~=6 && isfield(lines{Z,status(Z)},'Vertices') && ~isempty(lines{Z,status(Z)}.Vertices)
             Point = getPoint(sizM,0);
-            dist = sqrt((lines{Z,status(Z)}.Vertices(:,1)-Point(1)).^2+(lines{Z,status(Z)}.Vertices(:,2)-Point(2)).^2);
-            [m indy] = min(dist);                               % find nearest point of the line to mouse cursor
-            lines{Z,status(Z)}.Vertices(indy,:) = [];           % delete this point
+%             dist = sqrt((lines{Z,status(Z)}.Vertices(:,1)-Point(1)).^2+(lines{Z,status(Z)}.Vertices(:,2)-Point(2)).^2);
+            sempty = find(~cellfun(@isempty,lines(Z,:)));
+            [m, indi] = min(cellfun(@(x) min(sqrt((x.Vertices(:,1)-Point(1)).^2+(x.Vertices(:,2)-Point(2)).^2)),lines(Z,sempty)));
+            dist = sqrt((lines{Z,sempty(indi)}.Vertices(:,1)-Point(1)).^2+(lines{Z,sempty(indi)}.Vertices(:,2)-Point(2)).^2);
+            [m, indy] = min(dist);    % find nearest point of the line to mouse cursor
+            lines{Z,sempty(indi)}.Vertices(indy,:) = [];           % delete this point
             update_plot(F,sizM,Z,lines,contours,status,2)       %update everything except image
         end
     case 'keypress'
@@ -194,7 +218,7 @@ switch action,
                 if exist(fullfile(params.PathName,'ML-contours.mat'),'file')
                     load(fullfile(params.PathName,'ML-contours.mat'))
                     status = sum(~cellfun(@isempty,lines),2) +1;
-
+                    status(status==4) = 5;
                 else
                     errordlg('No previously saved interpolated contour file found')
                 end
@@ -533,20 +557,29 @@ end
 %             flag=false;
             if all(flag) && ceil(size(GCL,1)/2) == b
                 flag = [false false];
-                lastp = find(all(repmat(newGCL(ceil(size(GCL,1)/2),:),[size(GCL,1) 1])==GCL,2));
+%                 lastp = find(all(repmat(newGCL(ceil(size(GCL,1)/2),:),[size(GCL,1) 1])==GCL,2));
             else
                 norm = [1, -(SGCL(b+1,1)-SGCL(b-1,1))/(SGCL(b+1,2)-SGCL(b-1,2))];  %calculate norm vector on SCGL line
                 if isnan(norm(2))
                     errordlg('two points at same place')
                     return
                 end
-                vec = [SGCL(b,:)-norm*10000 ; SGCL(b,:)+norm*10000];
+                vec = [SGCL(b,:)-norm*10000 ;SGCL(b,:); SGCL(b,:)+norm*10000];
+                [xi,yi,ii] = polyxpoly(vec(:,1),vec(:,2),SGCL(:,1),SGCL(:,2));   %calculate intersection of SGCL line with norm vector
+                if size(ii,1)>1
+                    iii = ii(~all(ii == repmat([2 b],size(ii,1),1),2),:);
+                    if iii(1) == 1
+                        vec = vec(2:3,:);
+                    else
+                        vec = vec(1:2,:);
+                    end
+                end
                 [xi,yi,ii] = polyxpoly(vec(:,1),vec(:,2),GCL(:,1),GCL(:,2));   %calculate intersection of GCL line with norm vector
                 ind = find(ii(:,2) >= lastp);
-                if numel(ind)>1
-                    [nix, ind] = min(abs(ii(:,2)-b)); % find intersection point which is closer to current site
-                end
-                if ii(ind,2)-lastp > 15      % there might be some problem with finding the correct partner.. if this happens, take the old point and go on
+%                 if numel(ind)>1  % sollte jetzt gelöst sein
+%                     [nix, ind] = min(abs(ii(:,2)-b)); % find intersection point which is closer to current site
+%                 end
+                if ii(ind,2)-lastp > 15       % there might be some problem with finding the correct partner.. if this happens, take the old point and go on
                     newGCL(b,:) = newGCL(b-1,:);
                 else
                     newGCL(b,:) = [xi(ind) yi(ind)];    % this intersection is new point
