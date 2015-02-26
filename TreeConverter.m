@@ -18,13 +18,20 @@ end
 animal = regexp(MainDir,' ','split');
 animal = animal{~cellfun(@(x) isempty(strfind(x,'.')),animal)};
 % animal = str2double(regexp(animal,'\.','split'));
-
-root = dir(MainDir);                % list directory
 slices = cell(0,1);
-for n = 1:numel(root)
-    sl = textscan(root(n).name ,'Slice %s');    %search for Slice directories
-    if ~isempty(sl{1}) && root(n).isdir
-        slices{end+1} = sl{1}{1};               %remember Slice number
+if ~isempty(strfind(MainDir,'Slice'))
+    ind = strfind(MainDir,'Slice');
+    slices{end+1} = MainDir(ind+6:ind+8);
+              %remember Slice number
+    MainDir = MainDir(1:ind-1);
+
+else
+    root = dir(MainDir);                % list directory
+    for n = 1:numel(root)
+        sl = textscan(root(n).name ,'Slice %s');    %search for Slice directories
+        if ~isempty(sl{1}) && root(n).isdir
+            slices{end+1} = sl{1}{1};               %remember Slice number
+        end
     end
 end
 icc =  {'Ipsilateral','Contralateral'};
@@ -84,7 +91,7 @@ for sl = 1:numel(slices)                        %go through slice directories
                     if numel(ind) > 1
                         ind = ind(~cellfun(@isempty,strfind(tracing(ind),icc{ci})) | ~cellfun(@isempty,strfind(tracing(ind),ic{ci})));
                         if numel(ind) >1
-                            warndlg(sprintf('There are more than one mtr files which have "%s" in their name. Now the first file is chosen. If wrong, please check and rename',part{p,1}{1}),'Multiple Files','replace')
+                            warndlg(sprintf('There are more than one mtr files in Slice %s %s which have "%s" in their name. Now the first file is chosen. If wrong, please check and rename',slices{sl},icc{ci},part{p,1}{1}),'Multiple Files','replace')
                         end
                     end
                     tree = load_tree(fullfile(MainDir,sprintf('Slice %s',slices{sl}),'Tracings',tracing{ind(1)}));
@@ -107,11 +114,23 @@ for sl = 1:numel(slices)                        %go through slice directories
                     ct = ct + t;
                 end
             end
-            if numel(all_trees) >= str2num(slices{sl}) && isfield(all_trees(str2num(slices{sl})),ic{ci}) && ~isempty (all_trees(str2num(slices{sl})).(ic{ci}))
+            if ~exist('all_trees','var')
+                warndlg(sprintf('No trees found for RV-GFP Rat %s - Slice %s %s',animal,slices{sl},ic{ci}))
+%                 delete(f)
+            elseif numel(all_trees) >= str2num(slices{sl}) && isfield(all_trees(str2num(slices{sl})),ic{ci}) && ~isempty (all_trees(str2num(slices{sl})).(ic{ci}))
                 save_tree({all_trees(str2num(slices{sl})).(ic{ci})},fullfile(MainDir,sprintf('Slice %s',slices{sl}),sprintf('%s_%s_%s_all_trees.mtr',animal,slices{sl},ic{ci})))
-            elseif strfind(options,'-s')
-                delete(f)
             end
         end
     end
+end
+oldd = pwd;
+cd(MainDir)
+while 1
+   answer = questdlg('Split any file into supra/infra?','Split Trees','Yes','No','No');
+   if strcmp(answer,'Yes')
+      Split_Tree_File
+   else
+       cd(oldd)
+       break
+   end    
 end
