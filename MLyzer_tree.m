@@ -31,7 +31,13 @@ end
 
 for Z = 1:size(contours,1)
     for t = 1: numel(trees)
-        coord_plane = find(trees{t}.Z >= (Z-1) * z_scale & trees{t}.Z < Z * z_scale);
+        if Z ==1
+            coord_plane = find(trees{t}.Z < Z * z_scale);
+        elseif Z == size(contours,1)
+            coord_plane = find(trees{t}.Z >= (Z-1) * z_scale & trees{t}.Z < Z * z_scale);
+        else
+            coord_plane = find(trees{t}.Z >= (Z-1) * z_scale);
+        end
         if ~isempty(coord_plane)
             isSGCL = inpolygon(trees{t}.X(coord_plane),trees{t}.Y(coord_plane),contours{Z,1}.Vertices(:,1) * sample_rate * x_scale,contours{Z,1}.Vertices(:,2) * sample_rate * y_scale);
             isGCL = inpolygon(trees{t}.X(coord_plane),trees{t}.Y(coord_plane),contours{Z,2}.Vertices(:,1) * sample_rate * x_scale,contours{Z,2}.Vertices(:,2) * sample_rate * y_scale);
