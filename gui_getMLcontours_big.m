@@ -1,5 +1,5 @@
 %%
-function gui_getMLcontours_big(src, event, action,par)
+function gui_getMLcontours_big(~, event, action,par)
 
 global F M sizM Z lines lines_corrected trees status contours params endstatus       %initialization
 
@@ -23,7 +23,7 @@ trees = [];
 col = {'w','g','b','y','r'};    % color order for contours (inner to outer layer)
 
 
-switch action,
+switch action
     case 'move'                                             % moving mouse
         if status(Z)~=6
             update_plot(F,sizM,Z,lines,contours,status,1)   % update only line to mouse
@@ -33,27 +33,6 @@ switch action,
             if isfield(lines{Z,status(Z)},'Vertices') && ~isempty(lines{Z,status(Z)}.Vertices)
                 Point = getPoint(sizM,0);
                 lines{Z,status(Z)}.Vertices = [lines{Z,status(Z)}.Vertices; Point(1), Point(2)];    %add current point to line
-%                 sempty = find(~cellfun(@isempty,lines(Z,:)));
-%                 [m, indi] = min(cellfun(@(x) min(sqrt((x.Vertices(:,1)-Point(1)).^2+(x.Vertices(:,2)-Point(2)).^2)),lines(Z,sempty)));
-%                 if size(lines{Z,sempty(indi)}.Vertices,1) == 1
-%                     lines{Z,sempty(indi)}.Vertices = [lines{Z,sempty(indi)}.Vertices; Point(1), Point(2)];    %add current point to line
-%                 else
-%                     dist = sqrt((lines{Z,sempty(indi)}.Vertices(:,1)-Point(1)).^2+(lines{Z,sempty(indi)}.Vertices(:,2)-Point(2)).^2);
-%                     [m, indy] = min(dist);    % find nearest point of the line to mouse cursor
-%                     %                     dist(indy) = Inf;
-%                     if indy+1 > numel(dist)
-%                          lines{Z,sempty(indi)}.Vertices = [lines{Z,sempty(indi)}.Vertices; Point(1), Point(2)];
-%                     elseif indy-1 == 0
-%                         lines{Z,sempty(indi)}.Vertices = [ Point(1), Point(2); lines{Z,sempty(indi)}.Vertices];
-%                     else
-%                         [m, indy2] = min(dist([indy-1,indy+1]));
-%                         if indy2 == 1
-%                             lines{Z,sempty(indi)}.Vertices = [lines{Z,sempty(indi)}.Vertices(1:indy-1,:); Point(1), Point(2); lines{Z,sempty(indi)}.Vertices(indy:end,:)];    %add current point to line
-%                         else
-%                             lines{Z,sempty(indi)}.Vertices = [lines{Z,sempty(indi)}.Vertices(1:indy,:); Point(1), Point(2); lines{Z,sempty(indi)}.Vertices(indy+1:end,:)];    %add current point to line
-%                         end
-%                     end
-%                 end
             else
                 lines{Z,status(Z)}.Vertices = getPoint(sizM,0);     % add first point of line
                 lines{Z,status(Z)}.sample_rate = params.sample_rate;
@@ -63,11 +42,10 @@ switch action,
     case 'deletepoint'
         if status(Z) ~=6 && isfield(lines{Z,status(Z)},'Vertices') && ~isempty(lines{Z,status(Z)}.Vertices)
             Point = getPoint(sizM,0);
-%             dist = sqrt((lines{Z,status(Z)}.Vertices(:,1)-Point(1)).^2+(lines{Z,status(Z)}.Vertices(:,2)-Point(2)).^2);
             sempty = find(~cellfun(@isempty,lines(Z,:)));
-            [m, indi] = min(cellfun(@(x) min(sqrt((x.Vertices(:,1)-Point(1)).^2+(x.Vertices(:,2)-Point(2)).^2)),lines(Z,sempty)));
+            [~, indi] = min(cellfun(@(x) min(sqrt((x.Vertices(:,1)-Point(1)).^2+(x.Vertices(:,2)-Point(2)).^2)),lines(Z,sempty)));
             dist = sqrt((lines{Z,sempty(indi)}.Vertices(:,1)-Point(1)).^2+(lines{Z,sempty(indi)}.Vertices(:,2)-Point(2)).^2);
-            [m, indy] = min(dist);    % find nearest point of the line to mouse cursor
+            [~, indy] = min(dist);    % find nearest point of the line to mouse cursor
             lines{Z,sempty(indi)}.Vertices(indy,:) = [];           % delete this point
             update_plot(F,sizM,Z,lines,contours,status,2)       %update everything except image
         end
@@ -80,21 +58,19 @@ switch action,
             if status(Z)~=6
                 if isfield(lines{Z,status(Z)},'Vertices') && ~isempty(lines{Z,status(Z)}.Vertices)
                     Point = getPoint(sizM,0);
-                    %                 lines{Z,status(Z)}.Vertices = [lines{Z,status(Z)}.Vertices; Point(1), Point(2)];    %add current point to line
                     sempty = find(~cellfun(@isempty,lines(Z,:)));
-                    [m, indi] = min(cellfun(@(x) min(sqrt((x.Vertices(:,1)-Point(1)).^2+(x.Vertices(:,2)-Point(2)).^2)),lines(Z,sempty)));
+                    [~, indi] = min(cellfun(@(x) min(sqrt((x.Vertices(:,1)-Point(1)).^2+(x.Vertices(:,2)-Point(2)).^2)),lines(Z,sempty)));
                     if size(lines{Z,sempty(indi)}.Vertices,1) == 1
                         lines{Z,sempty(indi)}.Vertices = [lines{Z,sempty(indi)}.Vertices; Point(1), Point(2)];    %add current point to line
                     else
                         dist = sqrt((lines{Z,sempty(indi)}.Vertices(:,1)-Point(1)).^2+(lines{Z,sempty(indi)}.Vertices(:,2)-Point(2)).^2);
-                        [m, indy] = min(dist);    % find nearest point of the line to mouse cursor
-                        %                     dist(indy) = Inf;
+                        [~, indy] = min(dist);    % find nearest point of the line to mouse cursor
                         if indy+1 > numel(dist)
                             lines{Z,sempty(indi)}.Vertices = [lines{Z,sempty(indi)}.Vertices; Point(1), Point(2)];
                         elseif indy-1 == 0
                             lines{Z,sempty(indi)}.Vertices = [ Point(1), Point(2); lines{Z,sempty(indi)}.Vertices];
                         else
-                            [m, indy2] = min(dist([indy-1,indy+1]));
+                            [~, indy2] = min(dist([indy-1,indy+1]));
                             if indy2 == 1
                                 lines{Z,sempty(indi)}.Vertices = [lines{Z,sempty(indi)}.Vertices(1:indy-1,:); Point(1), Point(2); lines{Z,sempty(indi)}.Vertices(indy:end,:)];    %add current point to line
                             else
@@ -129,18 +105,13 @@ switch action,
                 save(fullfile(params.PathName,sprintf('ML-contours%s.mat',blade{params.blade+1})),'contours','lines','status')
              
                 SGCL = interp_border(lines{Z,1}.Vertices,params.intpoints,1,'smooth',params.relsmooth); % interpolating SGCL line
-%                 SGCL = lines{Z,1}.Vertices;
                 waitbar(1/6,w)
                 fissura = interp_border(lines{Z,5}.Vertices,params.intpoints,1,'smooth',params.relsmooth); % interpolating GCL line
                 waitbar(2/6,w)
                 GCL = interp_border(lines{Z,2}.Vertices,params.intpoints,1,'smooth',params.relsmooth); % interpolating fissura line
                 waitbar(3/6,w)
                 
-%                %%old  curv = [0; sqrt(sum(diff([SGCL GCL fissura],2,1).^2,2))];    % make pdistr for interp dependent on curvature level
-%                 curv = [0;sqrt(sum(diff(SGCL,2,1).^2,2));0];    % make pdistr for interp dependent on curvature level
-%                 curv = [0;sqrt(sum(diff(GCL,2,1).^2,2));0];    % make pdistr for interp dependent on curvature level
                 curv = sqrt(sum(diff(SGCL,2,1).^2,2));    % make pdistr for interp dependent on curvature level
-%                 curv=curv.^2; % enhance biggest curves
                 if round(size(curv,1)*params.curvfilt) ~= size(curv,1)*params.curvfilt
                     kern = rem(floor(size(curv,1)*params.curvfilt),2) * floor(size(curv,1)*params.curvfilt) + rem(ceil(size(curv,1)*params.curvfilt),2) * ceil(size(curv,1)*params.curvfilt); % rounds to the odd number
                 else
@@ -151,25 +122,16 @@ switch action,
                 curv = flipud(convn (padarray(flipud(curv),(kern-1)/2,'replicate'), ones (1, kern)' / kern, 'valid'));
                 curv([1,end]) = tmp;   % accounts for smoothing error at edges
                 
-                [nix, ind] = max(curv);
+                [~, ind] = max(curv);
                 curv = (1:0.1:10).^2 ;  % earlier exp
                 tSGCL = SGCL;
-%                 tSGCL(1:ceil(params.intpoints/2),:) = interp_border(SGCL(1:ind+1,:),ceil(params.intpoints/2),3,[],[],curv(1:ind),params.min_intervall); % interpolating SGCL line
-%                 tSGCL(ceil(params.intpoints/2)+1:end,:) = interp_border(SGCL(ind+2:end,:),floor(params.intpoints/2),3,[],[],curv(ind+1:end),params.min_intervall); % interpolating SGCL line
                 tSGCL(1:ceil(params.intpoints/2),:) = interp_border(SGCL(1:ind+1,:),ceil(params.intpoints/2),3,[],[],curv,params.min_intervall); % interpolating SGCL line
                 curv = fliplr(curv);
-%                 curv(1) = 0;
                 tSGCL(ceil(params.intpoints/2)+1:end,:) = interp_border(SGCL(ind+2:end,:),floor(params.intpoints/2),4,[],[],curv,params.min_intervall); % interpolating SGCL line
                 SGCL = tSGCL;
-%                 GCL = interp_border(GCL,params.intpoints,3,[],[],curv,params.min_intervall); % interpolating SGCL line
-%                 waitbar(1/6,w)
                 
-                [GCL fissura] = make_orthogonal_borders(SGCL,GCL,fissura);
+                [GCL, fissura] = make_orthogonal_borders(SGCL,GCL,fissura);
 %                 [SGCL fissura] = make_orthogonal_borders(GCL,SGCL,fissura);     %CAUTION Changed to gcl
-%             %%old    fissura = interp_border(fissura,params.intpoints,3,[],[],curv); % interpolating GCL line
-%             %%old    waitbar(2/6,w)
-%             %%old    GCL = interp_border(GCL,params.intpoints,3,[],[],curv); % interpolating fissura line
-%             %%old    waitbar(3/6,w)
                 
                 lines{Z,2}.Vertices = GCL;
                 lines{Z,2}.Faces = 1:params.intpoints;
@@ -182,7 +144,7 @@ switch action,
                     for o = 1: size(SGCL,1)
                         pairs=[SGCL(o,:);fissura(o,:)];     % place together one point of SGCL and fissura
                         
-                        [x y] = polyxpoly(pairs(:,1),pairs(:,2),lines{Z,2}.Vertices(:,1),lines{Z,2}.Vertices(:,2)); % find intersection between SGCL to fissura points and GCL line
+                        [x, y] = polyxpoly(pairs(:,1),pairs(:,2),lines{Z,2}.Vertices(:,1),lines{Z,2}.Vertices(:,2)); % find intersection between SGCL to fissura points and GCL line
                         if numel(x)<2 && ~isempty(x)        % something is found
                             
                             vec = diff(pairs,1,1);          % make unit vector from SGCL to fissura
@@ -199,13 +161,10 @@ switch action,
                     lines{Z,4}.Vertices = GCL + (fissura - GCL)* 2 / 3; % same for MML/OML
                 end
                 waitbar(5/6,w)
-%                 lines{Z,3}.Vertices = interp_border(lines{Z,3}.Vertices,params.intdistance,2); % reducing size of line
-%                 lines{Z,4}.Vertices = interp_border(lines{Z,4}.Vertices,params.intdistance,2); % reducing size of line
                 lines{Z,3}.Faces = 1:size(lines{Z,3}.Vertices,1);   % make the connection array
                 lines{Z,3}.sample_rate = params.sample_rate;
                 lines{Z,4}.Faces = lines{Z,3}.Faces;                % "
                 lines{Z,4}.sample_rate = params.sample_rate;
-%                 contours(Z*params.Zstep,:) = makeContours(lines,Z); % construct the layer contours from the border lines
                 waitbar(6/6,w)
                 close(w)
             end
@@ -246,7 +205,6 @@ switch action,
                 else
                     errordlg('No previously saved interpolated contour file for this stack found')
                 end
-%                 contours(setdiff(1:size(contours,1),1:params.Zstep:size(contours,1)),:)=[];     %deletes all contours that cannot be seen anyway (due to Zstep)
             elseif strcmp(answer,'Normal')
                 endstatus = false;
                 if exist(fullfile(params.PathName,sprintf('ML-contours%s.mat',blade{params.blade+1})),'file')
@@ -278,26 +236,19 @@ switch action,
         end
         info = imfinfo(fullfile(params.PathName,params.FileName));  % get picture information
         if numel(info) == 1
-%             try
-%                 str = regexp(info.ImageDescription,'\n','split');
-%                 strind = ~cellfun(@(x) isempty(strfind(x,'slices')),str);
-%                 n = textscan(str{strind},'slices=%d');
-%                 info = repmat(info,n{1},1);
-%             catch
                 answer = questdlg('Image is no stack or unknown format. Continue?','Yes','No');
                 if ~strcmp(answer,'Yes')
                     return
                 end
-%             end
         end
         if ~isempty(params.FileName(strfind(params.FileName,'_down')+5))
-            sample_rate = str2num(params.FileName(strfind(params.FileName,'_down')+5));
+            sample_rate = str2double(params.FileName(strfind(params.FileName,'_down')+5));
         else
             answer = inputdlg('Please give the sampling rate of the stack','Sampling Rate',1,{'1'});
             if isempty(answer)
                 return
             end
-            sample_rate = str2num(answer{1});
+            sample_rate = str2double(answer{1});
         end
         answer = questdlg('Please give information about the part the stack comprises','Pyramidal Blade','Everything','Only suprapyramidal blade','Only infrapyramidal blade','Everything');
         switch answer
@@ -353,8 +304,6 @@ switch action,
             else
                 save(fullfile(params.PathName,sprintf('ML-contours%s.mat',blade{params.blade+1})),'contours','lines','status')
             end
-%         elseif strcmp(answer,'No')
-%             clearvars contours lines status
         elseif strcmp(answer,'Cancel') || isempty(answer)
             return
         end
@@ -396,24 +345,17 @@ switch action,
                             this_line = lines_corrected{i,mc};
                             this_line.Vertices(:,3)=i;
                             line(this_line.Vertices(:,1),this_line.Vertices(:,2),this_line.Vertices(:,3),'Color',col{mc});
-                            %         this_patch = lines{i,mc};
-                            %         this_patch.FaceAlpha = 0.2;
-                            %         this_patch.FaceColor = col{mc};
-                            %         this_patch.Vertices(:,3)=i;
-                            %         patch(this_patch)
                         end
                     end
                 else
                     return
                 end
                 contours = makeContours(lines_corrected,1:size(contours,1)); % construct the layer contours from the border lines
-                statusx = status;
-                lines(1:end-1,:) = lines_corrected([1:(size(lines,1)-1)]*params.Zstep,:);
+                lines(1:end-1,:) = lines_corrected((1:(size(lines,1)-1))*params.Zstep,:);
                 lines(end,:) = lines_corrected(end,:);
                 status(:) = 6;
                 blade = {'','_supra','_infra'};
                 save(fullfile(params.PathName,sprintf('ML-contours_interpolated%s.mat',blade{params.blade+1})),'contours','lines','lines_corrected','status')
-%                 status = statusx;
                 answer = questdlg('Trees already transformed into whole DG?');
                 if strcmp(answer,'No')
                     TreeConverter(params.PathName)
@@ -530,7 +472,7 @@ end
         %         Point = [max(sizM(1)-sizM(3)*4/3,Point(1)), max(sizM(1)-sizM(4)*4/3,Point(2))];
         %         Point = [min(sizM(3)*4/3,Point(1)), min(sizM(4)*4/3,Point(2))];
         if special                  % point has to lie in the picture
-            [nix ind]=min(abs(sizM-repmat(Point',[2 1])));
+            [~, ind]=min(abs(sizM-repmat(Point',[2 1])));
             Point(~rem(ind,2)+1)=sizM(ind);
         end
     end
@@ -540,12 +482,12 @@ end
         answer = inputdlg('Give another point for SGCL or press Cancel','Defining SGCL zone..',1,{'[1,1]'});
         while 1
             
-            if ~isempty(answer) && all(size(str2num(answer{1})) == [1,2])
-                point = str2num(answer{1});
+            if ~isempty(answer) && all(size(str2double(answer{1})) == [1,2])
+                point = str2double(answer{1});
                 p = plot3(point(1,1),point(1,2),1,'ro','MarkerSize',25);
                 answerold = answer;
                 answer = inputdlg('This point ok? Else give another point or press Cancel','Defining SGCL zone..',1,answer);
-                if all(str2num(answerold{1})==str2num(answer{1}))
+                if all(str2double(answerold{1})==str2double(answer{1}))
                     break
                 else
                     delete(p)
@@ -570,8 +512,8 @@ end
                 contour{zz,l+1}.sample_rate = params.sample_rate;
             end
 
-            if ~isempty(answer) && all(size(str2num(answer{1})) == [1,2])
-                contour{zz,1}.Vertices = [lines{thisZ,1}.Vertices ; str2num(answer{1})];       %SGCL
+            if ~isempty(answer) && all(size(str2double(answer{1})) == [1,2])
+                contour{zz,1}.Vertices = [lines{thisZ,1}.Vertices ; str2double(answer{1})];       %SGCL
             else
                 contour{zz,1}.Vertices = lines{thisZ,1}.Vertices;       %SGCL
             end
@@ -589,7 +531,7 @@ end
         end
     end
 
-    function [newGCL newfissura] = make_orthogonal_borders(SGCL,GCL,fissura)
+    function [newGCL, newfissura] = make_orthogonal_borders(SGCL,GCL,fissura)
         flag = [false false];
         newGCL(1,:) = GCL(1,:);
         newGCL(size(GCL,1),:) = GCL(end,:);
@@ -597,26 +539,19 @@ end
         newfissura(size(fissura,1),:) = fissura(end,:);
         lastp = [1 1];
         curv = sqrt(sum(diff(GCL,2,1).^2,2));    % make pdistr for interp dependent on curvature level
-        [nix,ind] = max(curv);
+        [~,ind] = max(curv);
         if abs(ind-size(GCL,1)/2) < size(GCL,1)/20
             newGCL(ceil(size(GCL,1)/2),:) = GCL(ind,:);
             flag(1) = true;
             
             vec = [SGCL(ceil(size(SGCL,1)/2),:) ;SGCL(ceil(size(SGCL,1)/2),:)+(GCL(ind,:)-SGCL(ceil(size(SGCL,1)/2),:))*100];
-            [xi,yi,ii] = polyxpoly(vec(:,1),vec(:,2),fissura(:,1),fissura(:,2));   %calculate intersection of SGCL line with norm vector
+            [~,~,ii] = polyxpoly(vec(:,1),vec(:,2),fissura(:,1),fissura(:,2));   %calculate intersection of SGCL line with norm vector
             if size(ii,1) == 1
                 newfissura(ceil(size(fissura,1)/2),:) = fissura(ii(:,2),:);
                 flag(2) = true;
             end
         end
-% this did not work since curvature of fissura and GCL can be at different
-% places
-%         curv = sqrt(sum(diff(fissura,2,1).^2,2));    % make pdistr for interp dependent on curvature level
-%         [nix,ind] = max(curv);
-%         if abs(ind-size(GCL,1)/2) < size(GCL,1)/10
-%             newfissura(ceil(size(fissura,1)/2),:) = fissura(ind,:);
-%             flag(2) = true;
-%         end
+
         for b = 2:size(SGCL,1)-1
 %             flag=false;
             if all(flag) && ceil(size(GCL,1)/2) == b
@@ -624,15 +559,15 @@ end
                 lastp(1) = find(all(repmat(newGCL(b,:),[size(GCL,1) 1])==GCL,2));     %refind point of max curv
                 lastp(2) = find(all(repmat(newfissura(b,:),[size(fissura,1) 1])==fissura,2));     %refind intersection point
             else
-                norm = [1, -(SGCL(b+1,1)-SGCL(b-1,1))/(SGCL(b+1,2)-SGCL(b-1,2))];  %calculate norm vector on SCGL line, das stimmt so!!!
-                if isnan(norm(2))
+                normv = [1, -(SGCL(b+1,1)-SGCL(b-1,1))/(SGCL(b+1,2)-SGCL(b-1,2))];  %calculate norm vector on SCGL line, das stimmt so!!!
+                if isnan(normv(2))
                     errordlg('two points at same place')
                     return
-                elseif isinf(norm(2))  % two points have been placed exactly at same y value...
-                    norm = [0,1];
+                elseif isinf(normv(2))  % two points have been placed exactly at same y value...
+                    normv = [0,1];
                 end
-                vec = [SGCL(b,:)-norm*10000 ;SGCL(b,:); SGCL(b,:)+norm*10000];
-                [xi,yi,ii] = polyxpoly(vec(:,1),vec(:,2),SGCL(:,1),SGCL(:,2));   %calculate intersection of SGCL line with norm vector
+                vec = [SGCL(b,:)-normv*10000 ;SGCL(b,:); SGCL(b,:)+normv*10000];
+                [~,~,ii] = polyxpoly(vec(:,1),vec(:,2),SGCL(:,1),SGCL(:,2));   %calculate intersection of SGCL line with norm vector
                 if size(ii,1)>1
                     iii = ii(~all(ii == repmat([2 b],size(ii,1),1),2),:);
                     if iii(1) == 1
@@ -644,15 +579,15 @@ end
                 [xi,yi,ii] = polyxpoly(vec(:,1),vec(:,2),GCL(:,1),GCL(:,2));   %calculate intersection of GCL line with norm vector
                 if all(isempty(ii))
                     if iii(1) == 1
-                        vec = [SGCL(b,:)-norm*10000 ;SGCL(b,:)];
+                        vec = [SGCL(b,:)-normv*10000 ;SGCL(b,:)];
                     else
-                        vec = [SGCL(b,:); SGCL(b,:)+norm*10000];
+                        vec = [SGCL(b,:); SGCL(b,:)+normv*10000];
                     end
                     [xi,yi,ii] = polyxpoly(vec(:,1),vec(:,2),GCL(:,1),GCL(:,2));   %calculate intersection of GCL line with norm vector
                 end
                 ind = find(ii(:,2) >= lastp(1));
                 if numel(ind)>1  % sollte jetzt gelöst sein
-                    [nix, ind] = min(abs(ii(:,2)-b)); % find intersection point which is closer to current site
+                    [~, ind] = min(abs(ii(:,2)-b)); % find intersection point which is closer to current site
                 end
                 if isempty(ind)
                     errordlg('Strange error, change some points and retry')
@@ -673,8 +608,8 @@ end
                 %             else
                 %                 vec = [SGCL(b,:)-norm1*10000 ; SGCL(b,:)+norm1*10000];
                 %                 [xi,yi,ii1] = polyxpoly(vec(:,1),vec(:,2),GCL(:,1),GCL(:,2));   %calculate intersection of GCL line with norm vector
-                %                 [nix, ind1] = min(abs(ii1(:,2)-b)); % find intersection point which is closer to current site
-                % %                 [nix , ind] = min(sqrt(sum((repmat(GCL(b-1,:),numel(xi),1)-[xi,yi]).^2,2)),[],1);
+                %                 [~, ind1] = min(abs(ii1(:,2)-b)); % find intersection point which is closer to current site
+                % %                 [~ , ind] = min(sqrt(sum((repmat(GCL(b-1,:),numel(xi),1)-[xi,yi]).^2,2)),[],1);
                 %                 newGCL(b,:) = [xi(ind1) yi(ind1)];    % this intersection is new point
                 %             end
                 %             if b~= size(SGCL,1)
@@ -687,8 +622,8 @@ end
                 %                 else
                 %                     vec = [SGCL(b,:)-norm2*10000 ; SGCL(b,:)+norm2*10000];
                 %                     [xi,yi,ii2] = polyxpoly(vec(:,1),vec(:,2),GCL(:,1),GCL(:,2));
-                %                     [nix, ind2] = min(abs(ii2(:,2)-b)); % find intersection point which is closer to current site
-                % %                     [nix , ind] = min(sqrt(sum((repmat(GCL(b-1,:),numel(xi),1)-[xi,yi]).^2,2)),[],1);
+                %                     [~, ind2] = min(abs(ii2(:,2)-b)); % find intersection point which is closer to current site
+                % %                     [~ , ind] = min(sqrt(sum((repmat(GCL(b-1,:),numel(xi),1)-[xi,yi]).^2,2)),[],1);
                 %                     if flag
                 %                         newGCL(b,:) = [xi(ind2) yi(ind2)];
                 %                     else
@@ -705,7 +640,7 @@ end
                 vec = [SGCL(b,:) ; SGCL(b,:) + (newGCL(b,:) - SGCL(b,:))*10000];
                 [xi,yi,ii] = polyxpoly(vec(:,1),vec(:,2),fissura(:,1),fissura(:,2));   %calculate intersection of fissura line with norm vector
                 if size(ii,1)>1
-                    [nix,ind] = min(abs(ii(:,2) - lastp(2)));  %look for nearest point
+                    [~,ind] = min(abs(ii(:,2) - lastp(2)));  %look for nearest point
                     xi = xi(ind);
                     yi = yi(ind);
                 end
@@ -721,36 +656,23 @@ end
         %both attempts to avoid crossing overs raised problems themselves...
         newfissura = orderline(newfissura);
         newGCL = orderline(newGCL);
-
-        %         [newfissura(:,1),newfissura(:,2)] = poly2cw(newfissura(:,1),newfissura(:,2));
-%         newfissura = flipud(newfissura);
-%         [newGCL(:,1),newGCL(:,2)] = poly2cw(newGCL(:,1),newGCL(:,2));
-%         newGCL = flipud(newGCL);
     end
 %%
     function outline = orderline(inline)
-%         templine = NaN(size(inline,1),size(inline,2),size(inline,1));
-%         for i = 0:size(inline,1)-1
-%             templine(:,:,i) = circshift(inline,i);
-%         end
-%         templine = sqrt(sum(diff(templine,1,3).^2,2));
         outline = zeros(size(inline,1),2);
         outline(1,:) = inline(1,:);
         h = ceil(size(inline,1)/2);
         outline(h,:) = inline(h,:);
         inline(h,:) = [];
-%         for i = 1:size(inline,1)-1
-%             min(templine(i,1,:))
-%         end
-    ind = 1;
-    for il = 2:size(outline,1)
-        if il == h
-            continue
-        else
-            inline(ind,:) = [];
+        ind = 1;
+        for il = 2:size(outline,1)
+            if il == h
+                continue
+            else
+                inline(ind,:) = [];
+            end
+            [~,ind] = min(sqrt(sum((repmat(outline(il-1,:),[size(inline,1),1])-inline).^2,2)));
+            outline(il,:) = inline(ind,:);
         end
-        [nix,ind] = min(sqrt(sum((repmat(outline(il-1,:),[size(inline,1),1])-inline).^2,2)));
-        outline(il,:) = inline(ind,:);
-    end
     end
 end
